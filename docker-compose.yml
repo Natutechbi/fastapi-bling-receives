@@ -1,0 +1,11 @@
+services:
+  Fastapi-Bling-Receives:
+    container_name: fb-receives
+    build: .  # Build the image from the Dockerfile in the current directory
+    working_dir: /fb-receives
+    image: fastapi-bling-receives
+    ports: 
+      - "8079:80"
+    restart: always
+    volumes:
+      - ./:/fb-receives # Mount the current directory as a volume 
