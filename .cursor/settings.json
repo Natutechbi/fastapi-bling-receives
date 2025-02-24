@@ -1,0 +1,6 @@
+{
+  "defaultFilesToInclude": ["RAG.txt"],
+  "aiContext": {
+    "includedFiles": ["RAG.txt"]
+  }
+}

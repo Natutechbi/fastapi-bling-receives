@@ -1,0 +1,9 @@
+---
+description: Include RAG.txt in AIContext
+globs: RAG.txt
+---
+
+# Your rule content
+
+- You can [RAG.txt](mdc:.cursor/rules/RAG.txt )   files here
+
