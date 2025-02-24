@@ -1,0 +1,284 @@
+name: Deploy FastAPI Bling Receives
+on:
+  push:
+    branches:
+      - main
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    # Step 1: Set up SSH using an SSH key
+    - name: Set up SSH
+      uses: appleboy/ssh-action@v0.1.9
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          # Step 1: Check Dockerfile and docker compose file
+          cd /home/rdpuser/${{ secrets.DIRECTORY }}
+          
+          # Configure git to trust this directory 
+          
+          # Make sure we're in a git repository and up to date
+          if [ ! -d .git ]; then
+            git init
+            git remote add origin git@github.com:Natutechbi/${{ secrets.DIRECTORY }}.git
+            git fetch origin main
+            git reset --hard origin/main
+          else
+            git fetch origin main
+            git reset --hard origin/main
+          fi
+          
+          # Get the differences in Dockerfile, docker-compose.yml, and code files
+          DOCKERFILE_CHANGES=$(git diff HEAD HEAD~1 -- Dockerfile | wc -l)
+          COMPOSE_CHANGES=$(git diff HEAD HEAD~1 -- docker-compose.yml | wc -l)
+          CODE_CHANGES=$(git diff HEAD HEAD~1 -- ':!Dockerfile' ':!docker-compose.yml' | wc -l)
+          
+          # Check if there are no changes at all
+          if [ $DOCKERFILE_CHANGES -eq 0 ] && [ $COMPOSE_CHANGES -eq 0 ] && [ $CODE_CHANGES -eq 0 ]; then
+            echo "No changes detected in Dockerfile, docker-compose.yml, or code files"
+            exit 0
+          fi
+          
+          # Check for Dockerfile changes
+          if [ $DOCKERFILE_CHANGES -gt 0 ]; then
+            echo "Changes detected in Dockerfile"
+            # Step 1: Check if the directory exists and create backup
+            if [ ! -d "/home/rdpuser/${{ secrets.DIRECTORY }}" ]; then
+              echo "Directory /home/rdpuser/${{ secrets.DIRECTORY }} does not exist"
+              exit 1
+            fi
+            
+            # Create backup with timestamp
+            TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+            
+            # Ensure backup directory exists
+            if ! mkdir -p "/home/rdpuser/Backups/${{ secrets.DIRECTORY }}"; then
+              echo "Failed to create backup directory"
+              exit 1
+            fi
+            
+            BACKUP_PATH="/home/rdpuser/Backups/${{ secrets.DIRECTORY }}/${{ secrets.DIRECTORY }}_${TIMESTAMP}.tar.xz"
+            
+            echo "Creating backup of /home/rdpuser/${{ secrets.DIRECTORY }}..."
+            if ! tar -cJf "$BACKUP_PATH" -C /home/rdpuser "${{ secrets.DIRECTORY }}"; then
+              echo "Failed to create backup"
+              exit 1
+            fi
+            echo "Backup created successfully at $BACKUP_PATH"
+            
+            # Step 2: Navigate to the deployment directory
+            cd /home/rdpuser/${{ secrets.DIRECTORY }} || exit 1
+            
+            # Step 3: Update repository 
+            if ! git fetch origin; then
+              echo "Failed to fetch from remote"
+              exit 1
+            fi
+            if ! git reset --hard origin/main; then
+              echo "Failed to reset to main branch"
+              exit 1
+            fi
+            
+            # Step 4: Stop and remove existing containers
+            echo "Stopping and removing existing containers..."
+            if ! docker compose down; then
+              echo "Failed to stop containers"
+              exit 1
+            fi
+            
+            # Step 5: Remove specific container if it exists
+            if docker ps -a --format '{{.Names}}' | grep -q "^${{ secrets.CONTAINER }}$"; then
+              echo "Removing container named '${{ secrets.CONTAINER }}'..."
+              if ! docker rm -f ${{ secrets.CONTAINER }}; then
+                echo "Failed to remove ${{ secrets.CONTAINER }} container"
+                exit 1
+              fi
+            fi
+            
+            # Step 6: Clean up unused Docker resources
+            echo "Cleaning up Docker resources..."
+            if ! docker container prune -f; then
+              echo "Failed to prune containers"
+              exit 1
+            fi
+            if ! docker image prune -f -a; then
+              echo "Failed to prune images"
+              exit 1
+            fi
+            if ! docker volume prune -f -a; then
+              echo "Failed to prune volumes"
+              exit 1
+            fi
+            if ! docker system prune -f -a; then
+              echo "Failed to prune system"
+              exit 1
+            fi
+            if ! docker network prune -f; then
+              echo "Failed to prune networks"
+              exit 1
+            fi
+            
+            # Step 7: Build and start the fb-receivers container
+            echo "Starting up ${{ secrets.CONTAINER }} container..."
+            if ! docker compose up -d --build; then
+              echo "Failed to start containers"
+              exit 1
+            fi                        
+
+          # Check for docker-compose.yml changes
+          if [ $COMPOSE_CHANGES -gt 0 ]; then
+            echo "Changes detected in docker-compose.yml, starting container and volumes update..."
+            
+            # Create backup with timestamp
+            TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+            
+            # Ensure backup directory exists
+            if ! mkdir -p "/home/rdpuser/${{ secrets.DIRECTORY }}/backups"; then
+              echo "Failed to create backup directory"
+              exit 1
+            fi
+            
+            # Define source and backup paths
+            SOURCE_FILE="/home/rdpuser/${{ secrets.DIRECTORY }}/docker-compose.yml"
+            BACKUP_PATH="/home/rdpuser/${{ secrets.DIRECTORY }}/backups/docker-compose.yml_${TIMESTAMP}.tar.xz"
+            
+            echo "Creating backup of docker-compose.yml..."
+            if ! tar -cJf "$BACKUP_PATH" -C "$(dirname "$SOURCE_FILE")" "$(basename "$SOURCE_FILE")"; then
+              echo "Failed to create backup of docker-compose.yml"
+              exit 1
+            fi
+            echo "Backup created successfully at $BACKUP_PATH"
+            
+            # Step 1 from container and volumes update: Navigate to the deployment directory
+            cd /home/rdpuser/${{ secrets.DIRECTORY }} || exit 1
+            
+            # Step 2 from container and volumes update: Update repository with latest changes
+            if [ -d .git ]; then
+              git fetch origin
+              git reset --hard origin/main
+            else
+              echo "Initializing new repository..."
+              git init
+              git remote add origin git@github.com:Natutechbi/${{ secrets.DIRECTORY }}.git
+              git pull origin main
+            fi
+            
+            # Step 3 from container and volumes update: Stop and remove existing containers
+            echo "Stopping and removing existing containers..."
+            if ! docker compose down; then
+              echo "Failed to stop containers"
+              exit 1
+            fi
+            
+            # Step 4 from container and volumes update: Remove specific container and its volumes if it exists
+            if docker ps -a --format '{{.Names}}' | grep -q "^${{ secrets.CONTAINER }}$"; then
+              echo "Removing container named "${{ secrets.CONTAINER }}" and its volumes..."
+              if ! docker rm -f -v ${{ secrets.CONTAINER }}; then
+                echo "Failed to remove  container and its volumes"
+                exit 1
+              fi
+            fi
+            
+            # Step 5 from container and volumes update: Clean up unused Docker resources
+            echo "Cleaning up Docker resources..."
+            if ! docker container prune -f; then
+              echo "Failed to prune containers"
+              exit 1
+            fi
+            if ! docker volume prune -f -a; then
+              echo "Failed to prune volumes"
+              exit 1
+            fi
+           
+            # Step 6 from container and volumes update: Build and start the container
+            echo "Starting up container..."
+            if ! docker compose up -d; then
+              echo "Failed to start containers"
+              exit 1
+            fi
+          fi
+
+          # If changes in code files
+          if [ $CODE_CHANGES -gt 0 ]; then
+            echo "Changes in code files detected, starting backup of changed files..."
+            
+            # Create backup with timestamp
+            TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+            
+            # Ensure backup directory exists
+            if ! mkdir -p "/home/rdpuser/${{ secrets.DIRECTORY }}/backups"; then
+              echo "Failed to create backup directory"
+              exit 1
+            fi
+            
+            # Get list of changed files
+            CHANGED_FILES=$(git diff --name-only HEAD HEAD~1 \
+              --exclude='Dockerfile' \
+              --exclude='docker-compose.yml' \
+              --exclude='.git/*' \
+              --exclude='backups/*')
+            
+            echo "Creating backup of changed files..."
+            
+            # Create a backup for each changed file individually
+            echo "$CHANGED_FILES" | while read -r file; do
+              if [ -n "$file" ]; then
+                # Define source and backup paths
+                SOURCE_FILE="/home/rdpuser/${{ secrets.DIRECTORY }}/$file"
+                BACKUP_FILE="/home/rdpuser/${{ secrets.DIRECTORY }}/backups/${file##*/}_${TIMESTAMP}.backup"
+                
+                # Create directory structure if needed
+                mkdir -p "$(dirname "$BACKUP_FILE")"
+                
+                # Copy the file to backup location
+                if ! cp "/home/rdpuser/${{ secrets.DIRECTORY }}/$file" "$BACKUP_FILE"; then
+                  echo "Failed to backup file: $file"
+                  exit 1
+                fi
+                
+                echo "Backed up $file to $BACKUP_FILE"
+              fi
+            done
+            
+            echo "All files backed up successfully"
+            
+            # Step 1 from container update: Navigate to the deployment directory
+            cd /home/rdpuser/${{ secrets.DIRECTORY }} || exit 1
+            
+            # Step 2 from container update: Update repository with latest changes
+            git fetch origin
+            git reset --hard origin/main
+            
+            # Step 3 from container update: Stop and remove existing containers
+            echo "Stopping and removing existing containers..."
+            if ! docker compose down; then
+              echo "Failed to stop containers"
+              exit 1
+            fi
+            
+            # Step 4 from container update: Remove specific container if it exists
+            if docker ps -a --format '{{.Names}}' | grep -q "^${{ secrets.CONTAINER }}$"; then
+              echo "Removing container named..."
+              if ! docker rm -f ${{ secrets.CONTAINER }}; then
+                echo "Failed to remove container"
+                exit 1
+              fi
+            fi
+            
+            # Step 5 from container update: Clean up unused Docker resources
+            echo "Cleaning up Docker resources..."
+            if ! docker container prune -f; then
+              echo "Failed to prune containers"
+              exit 1
+            fi
+            
+            # Step 6 from container update: Build and start the ${{ secrets.CONTAINER }} container
+            echo "Starting up container..."
+            if ! docker compose up -d; then
+              echo "Failed to start containers"
+              exit 1
+            fi
+          fi 

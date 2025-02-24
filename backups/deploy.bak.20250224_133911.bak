@@ -1,0 +1,63 @@
+name: Deploy FastAPI Bling Receives
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Set up SSH using an SSH key
+    - name: Set up SSH
+      uses: appleboy/ssh-action@v0.1.9
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: root
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          # Step 2: Check if the directory exists, remove if it does
+          if [ -d "/home/rdpuser/fastapi-bling-receives" ]; then
+            echo "Directory /home/rdpuser/fastapi-bling-receives. Removing..."
+            rm -rf /home/rdpuser/fastapi-bling-receives
+          fi
+
+          # Step 3: Navigate to the deployment directory
+          cd /home/rdpuser
+          
+          # Step 4: Check if the repository already exists
+          if [ -d "fastapi-bling-receives/.git" ]; then
+            echo "Repository exists. Doing git pull..."
+            cd fastapi-bling-receives
+            git pull || { echo "Git pull failed"; exit 1; }
+          else
+            echo "Cloning repository..."
+            git clone git@github.com:Natutechbi/fastapi-bling-receives.git
+          fi
+          
+          # Step 5: Navigate to the deployment directory
+          cd /home/rdpuser/fastapi-bling-receives
+          
+          # Step 6: Stop and remove existing fst-receives container
+          echo "Stopping and removing existing containers..."
+          docker compose down --remove-orphans
+
+          # Step 7: Remove any remaining container named "fastapi-bling-receives"
+          echo "Removing any conflicting container named 'fastapi-bling-receives'..."
+          docker ps -a | grep "fst-receives" && docker rm -f fastapi-bling-receives
+
+          # Step 8: Clean up unused Docker resources
+          echo "Pruning Docker resources..."
+          docker container prune -f
+          docker image prune -f -a
+          docker volume prune -f -a
+          docker system prune -f -a
+          docker network prune -f
+          apt-get autoremove
+          apt-get autoclean
+         
+          # Step 9: Build and start the fst-stone container
+          echo "Starting up fst-receives container..."
+          docker compose up -d
