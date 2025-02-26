@@ -1,7 +1,8 @@
 Instructions
 1-Ensure that was added logging for successes and errors in all API calls, database connections, and data structures.
 2-Ensure that all API calls on the project included a delay of 4 seconds, 3 times as rate limit. When not, implemented delay to prevent overwhelming the API with requests and avoid rate limiting.
-3-Ensure loading environment variables from a .env file. keep sensitive information (like API keys) separate from the code on the project.
+3-Ensure loading environment variables from a .env file. keep sensitive information (like API keys) separate from the code on the project;
+
 
 The bling_sources.py functions: #Explains me what is it? what it does?
 1- `get_bling_modules`: Retrieves modules from Bling API. Includes logging for success/failure, a 4-second delay, and uses environment variables for configuration.
@@ -20,14 +21,8 @@ The accounts_receivable.py fuctions:
     - Calculates the date 5 days ago from the current date
     - Creates a query to find documents where dataEmissao_x is greater than or equal to 5 days ago
     - Executes the query and returns the results as a list
-    - Includes proper error handling and logging
-    - Ensures the MongoDB connection is properly closed
- You can use this function to get the receivables from the last 5 days like this: "recent_receivables = get_recent_receivables()"
- Each document in the returned list will contain all the fields from the MongoDB collection, including the dataEmissao_x field and other related data as shown in the accounts_receivable_template.ts file.
- The function follows the project's conventions by:
-    - Using environment variables for configuration
-    - Including proper logging for success and errors
-    - Properly handling database connections and cleanup
+    - Also splits numeroDocumento into CR.PedidoNº and CR.PedOrd fields.
+
 
 
 
