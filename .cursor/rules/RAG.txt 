@@ -1,1 +1,33 @@
-STONE is a company that provides a platform for managing and automating business processes.
+Instructions
+1-Ensure that was added logging for successes and errors in all API calls, database connections, and data structures.
+2-Ensure that all API calls on the project included a delay of 4 seconds, 3 times as rate limit. When not, implemented delay to prevent overwhelming the API with requests and avoid rate limiting.
+3-Ensure loading environment variables from a .env file. keep sensitive information (like API keys) separate from the code on the project.
+
+The bling_sources.py functions: #Explains me what is it? what it does?
+1- `get_bling_modules`: Retrieves modules from Bling API. Includes logging for success/failure, a 4-second delay, and uses environment variables for configuration.
+2- `get_bling_vendors`: Its retrieves vendors from Bling API connect to MongoDB, delete existing data in a collection, and then insert new data.
+3- `save_to_mongodb`: Saves data to MongoDB. Includes logging for success/failure, and uses environment variables for configuration.
+4- `save_vendors_to_mongodb`: Saves vendor data to MongoDB. Includes logging for success/failure, and uses environment variables for configuration. This function connects to a MongoDB database, deletes any existing data in the specified collection, and then inserts the new vendor data.
+5- `get_bling_sellers_data`: Retrieves seller data from the Bling API. It constructs a request to the API endpoint for sellers, including necessary headers for authentication. Upon successfully fetching the data, it transforms the JSON response into a Pandas DataFrame for easier manipulation, performs data normalization and type conversions, and returns the data as a list of dictionaries. Error logging is included to capture any failures during the API request.
+6- `get_bling_modulos_data`: Retrieves and processes data about modules and their statuses from the Bling API, merging the two datasets into a single structure, and also retrieves payment method data from the Bling API.
+7- `get_bling_payment_methods_data`: Retrieve payment methods data from the Bling API. It makes a GET request to the appropriate API endpoint, including necessary authentication headers. After a successful API call, it processes the JSON response and transforms it into a Pandas DataFrame. The DataFrame is then converted into a list of dictionaries, which is returned by the function. Logging is used to track the success or failure of the API request and data retrieval process.
+8- `get_bling_receivable_data`: Retrieves receivable data from the Bling API for the last 30 days. It calculates the today and _30_day_ago dates to use as a date range for filtering the receivable data.
+9- 'fetch_receivable_detail': Retrieves and processes receivable data from the Bling API, merging summary and detailed information, renaming columns, and formatting data types before returning a list of dictionaries.
+
+The accounts_receivable.py fuctions:
+1- get_recent_receivables():
+    - Connects to MongoDB using the environment variables
+    - Calculates the date 5 days ago from the current date
+    - Creates a query to find documents where dataEmissao_x is greater than or equal to 5 days ago
+    - Executes the query and returns the results as a list
+    - Includes proper error handling and logging
+    - Ensures the MongoDB connection is properly closed
+ You can use this function to get the receivables from the last 5 days like this: "recent_receivables = get_recent_receivables()"
+ Each document in the returned list will contain all the fields from the MongoDB collection, including the dataEmissao_x field and other related data as shown in the accounts_receivable_template.ts file.
+ The function follows the project's conventions by:
+    - Using environment variables for configuration
+    - Including proper logging for success and errors
+    - Properly handling database connections and cleanup
+
+
+
