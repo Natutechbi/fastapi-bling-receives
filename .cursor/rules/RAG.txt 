@@ -1,10 +1,22 @@
+Structure
+1- This project is a Python application that uses the Bling API to retrieve data and save data to MongoDB;
+2- This project uses MongoDB to store data;
+3- This project  is deployed on VPS server Ubuntu 22.04 with Docker to containerize the application;
+4- The VPS Server uses web server setup: Apache2 runs directly on the VPS, while Nginx is containerized. Only configure these when needed; otherwise, keep the project as is;
+5- This project uses FastAPI Framework;
+6- Uses modular python structure accross def functions and classes to organize code structure for writing maintainable code.
+
 Instructions
 1-Ensure that was added logging for successes and errors in all API calls, database connections, and data structures.
 2-Ensure that all API calls on the project included a delay of 4 seconds, 3 times as rate limit. When not, implemented delay to prevent overwhelming the API with requests and avoid rate limiting.
 3-Ensure loading environment variables from a .env file. keep sensitive information (like API keys) separate from the code on the project;
+4-Ensures the project uses the America/Sao_Paulo timezone and verifies the current time is in UTC, consistently across the Dockerfile, Docker Compose file, and the project's code
+5-Ensures that the Docker container, defined in the docker-compose.yml file, restarts automatically if it stops or crashes
+6-Ensures that the requirements.txt file is updated to include all the necessary packages for the project, including those used in the Dockerfile, docker-compose.yml, and the project's Python code
 
+Functions
 
-The bling_sources.py functions: #Explains me what is it? what it does?
+bling_sources.py functions: 
 1- `get_bling_modules`: Retrieves modules from Bling API. Includes logging for success/failure, a 4-second delay, and uses environment variables for configuration.
 2- `get_bling_vendors`: Its retrieves vendors from Bling API connect to MongoDB, delete existing data in a collection, and then insert new data.
 3- `save_to_mongodb`: Saves data to MongoDB. Includes logging for success/failure, and uses environment variables for configuration.
@@ -15,7 +27,7 @@ The bling_sources.py functions: #Explains me what is it? what it does?
 8- `get_bling_receivable_data`: Retrieves receivable data from the Bling API for the last 30 days. It calculates the today and _30_day_ago dates to use as a date range for filtering the receivable data.
 9- 'fetch_receivable_detail': Retrieves and processes receivable data from the Bling API, merging summary and detailed information, renaming columns, and formatting data types before returning a list of dictionaries.
 
-The accounts_receivable.py fuctions:
+accounts_receivable.py fuctions:
 1- get_recent_receivables():
     - Connects to MongoDB using the environment variables
     - Calculates the date 5 days ago from the current date
